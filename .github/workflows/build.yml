@@ -13,15 +13,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Pinned: the app is developed and verified on this exact SDK, and a
+      # newer stable brings new analyzer lints that fail the build for no
+      # functional reason. Bump both jobs together when the local SDK moves.
       - uses: subosito/flutter-action@v2
         with:
+          flutter-version: 3.47.9
           channel: stable
       # opencv_dart builds its native library through the NDK / CMake.
       - name: Install NDK and CMake
         run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;28.2.13676358" "cmake;3.22.1"
       - name: Analyze and test
         working-directory: app
-        run: flutter analyze && flutter test
+        # The log itself needs a login to read, but ::error:: lines show up as
+        # public check-run annotations, so failures here stay diagnosable.
+        run: |
+          set +e
+          flutter --version
+          { flutter analyze && flutter test -r expanded; } > "$RUNNER_TEMP/step.log" 2>&1
+          code=$?
+          tail -n 120 "$RUNNER_TEMP/step.log"
+          if [ $code -ne 0 ]; then
+            grep -nE "error|Error|ERROR|failed|FAILED|Exception|Unhandled" "$RUNNER_TEMP/step.log" \
+              | grep -v "0 error" | head -n 25 | cut -c1-600 | sed 's/^/::error::/'
+            exit $code
+          fi
       - name: Build APK
         working-directory: app
         run: flutter build apk --debug
@@ -36,10 +52,21 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
+          flutter-version: 3.47.9
           channel: stable
       - name: Build (no codesign)
         working-directory: app
-        run: flutter build ios --release --no-codesign
+        run: |
+          set +e
+          flutter --version
+          flutter build ios --release --no-codesign > "$RUNNER_TEMP/step.log" 2>&1
+          code=$?
+          tail -n 150 "$RUNNER_TEMP/step.log"
+          if [ $code -ne 0 ]; then
+            grep -nE "error:|Error|error |failed|FAILED|Exception" "$RUNNER_TEMP/step.log" \
+              | head -n 25 | cut -c1-600 | sed 's/^/::error::/'
+            exit $code
+          fi
       - name: Package IPA
         working-directory: app/build/ios/iphoneos
         run: |

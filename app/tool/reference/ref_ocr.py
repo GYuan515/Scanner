@@ -1,8 +1,8 @@
-"""Reference OCR pipeline in Python, mirroring what the Dart side does.
+"""Reference implementation for checking the Dart port (not shipped).
 
-Used to check the converted models and to pick parameters; not shipped.
-    python ref_ocr.py make <out.jpg>        # synthetic test page
-    python ref_ocr.py run <models_dir> <image>
+Copied as a whole from RapidOCR / RapidLayout / RapidTable (RapidAI,
+Apache-2.0). Their decoding logic is what the Dart code in lib/ocr and
+lib/convert was ported from; the licenses are listed in docs/licenses.md.
 """
 import sys
 import time

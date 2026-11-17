@@ -1,10 +1,8 @@
-"""Reference layout + table pipeline in Python (mirrors RapidLayout /
-RapidTable), used to check the Dart port. Not shipped.
+"""Reference implementation for checking the Dart port (not shipped).
 
-    python ref_layout.py make <page.jpg>
-    python ref_layout.py run <models_dir> <page.jpg> <fixture_dir>
-The run writes the raw model outputs and the expected decoded results to
-<fixture_dir> so Dart tests can replay them without ONNX Runtime.
+Copied as a whole from RapidOCR / RapidLayout / RapidTable (RapidAI,
+Apache-2.0). Their decoding logic is what the Dart code in lib/ocr and
+lib/convert was ported from; the licenses are listed in docs/licenses.md.
 """
 import json
 import sys
