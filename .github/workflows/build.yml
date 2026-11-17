@@ -1,0 +1,52 @@
+# Builds on GitHub's machines: no Mac needed.
+# Free minutes: public repositories build for free; private ones use the
+# monthly quota (macOS minutes count ten times).
+name: build
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  android-debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      # opencv_dart builds its native library through the NDK / CMake.
+      - name: Install NDK and CMake
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;28.2.13676358" "cmake;3.22.1"
+      - name: Analyze and test
+        working-directory: app
+        run: flutter analyze && flutter test
+      - name: Build APK
+        working-directory: app
+        run: flutter build apk --debug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-apk
+          path: app/build/app/outputs/flutter-apk/*.apk
+
+  ios-unsigned:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Build (no codesign)
+        working-directory: app
+        run: flutter build ios --release --no-codesign
+      - name: Package IPA
+        working-directory: app/build/ios/iphoneos
+        run: |
+          mkdir Payload
+          cp -r Runner.app Payload/
+          zip -qry app-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-unsigned-ipa
+          path: app/build/ios/iphoneos/app-unsigned.ipa

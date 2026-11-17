@@ -1,0 +1,55 @@
+# Cloud builds for a project developed on Windows.
+#
+# Both workflows build the app in app/ and upload the result as an artifact:
+#   - android-debug: a debug APK (install manually, as on this machine)
+#   - ios-unsigned: an unsigned .ipa, to be signed with Sideloadly / AltStore
+#     using a free Apple ID, or with a paid developer account.
+#
+# Free tiers and instance names change; check Codemagic's current pricing.
+
+workflows:
+  android-debug:
+    name: Android debug APK
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      flutter: stable
+    scripts:
+      - name: Analyze and test
+        script: cd app && flutter analyze && flutter test
+      - name: Build APK
+        script: cd app && flutter build apk --debug
+    artifacts:
+      - app/build/app/outputs/flutter-apk/*.apk
+    publishing:
+      email:
+        recipients:
+          - $CM_BUILD_RECIPIENT
+        notify:
+          success: true
+          failure: true
+
+  ios-unsigned:
+    name: iOS unsigned IPA
+    max_build_duration: 90
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Flutter packages
+        script: cd app && flutter pub get
+      - name: Build (no codesign)
+        script: cd app && flutter build ios --release --no-codesign
+      - name: Package IPA
+        script: |
+          set -e
+          cd app/build/ios/iphoneos
+          rm -rf Payload app-unsigned.ipa
+          mkdir Payload
+          cp -r Runner.app Payload/
+          zip -qry app-unsigned.ipa Payload
+    artifacts:
+      - app/build/ios/iphoneos/app-unsigned.ipa
+      - app/build/ios/iphoneos/Runner.app
