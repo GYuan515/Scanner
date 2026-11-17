@@ -63,14 +63,16 @@ jobs:
           code=$?
           tail -n 150 "$RUNNER_TEMP/step.log"
           if [ $code -ne 0 ]; then
-            grep -nE "error:|Error|error |failed|FAILED|Exception|Hash mismatch|curl|xcframework" "$RUNNER_TEMP/step.log" \
-              | head -n 25 | cut -c1-600 | sed 's/^/::error::/'
-            # The line number points at the failure; the reason is just above
-            # it, and CocoaPods buries it in its own output.
-            for n in $(grep -nE "Error running pod install|Error output from CocoaPods" "$RUNNER_TEMP/step.log" | cut -d: -f1); do
-              sed -n "$((n>25 ? n-25 : 1)),$((n+5))p" "$RUNNER_TEMP/step.log" \
-                | cut -c1-400 | sed 's/^/::error::pod| /'
+            # Report the last lines of CocoaPods' own output: that is where
+            # the real reason sits, and the unzip noise above it hides it.
+            for n in $(grep -nE "Error running pod install" "$RUNNER_TEMP/step.log" | cut -d: -f1); do
+              sed -n "$((n>60 ? n-60 : 1)),${n}p" "$RUNNER_TEMP/step.log" \
+                | grep -vE "creating:|inflating:|linking:|extracting:" \
+                | tail -n 30 | cut -c1-400 | sed 's/^/::error::pod| /'
             done
+            grep -nE "error:|error |FAILED|Exception|Hash mismatch|\[!\]" "$RUNNER_TEMP/step.log" \
+              | grep -vE "creating:|inflating:|linking:" \
+              | head -n 15 | cut -c1-600 | sed 's/^/::error::/'
             exit $code
           fi
       - name: Package IPA
